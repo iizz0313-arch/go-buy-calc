@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🇰🇷 韓貨團購精準分帳工具 (修正版)</title>
+  <title>🇰🇷 韓貨團購精準分帳工具 (修復版)</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -244,7 +244,7 @@
                       </span>
                     </div>
                     <div class="text-xs text-slate-400 mt-1">
-                      單價 ${{ exp.price }} × 總數 {{ exp.qty }}個 ｜ 由 <span class="font-semibold text-slate-600">{{ exp.payer }}</span> 付款
+                      單價 ${{ exp.price }} × 總數 {{ exp.qty }}個 ｜ 由 <span class="font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">💰 {{ exp.payer }}</span> 付款
                     </div>
                   </div>
                   
@@ -592,6 +592,7 @@
           showSettlement.value = false
           editingIndex.value = null
           
+          expensePayer.value = ''
           extraType.value = 'shipping'
           extraCustomDesc.value = ''
           extraPayer.value = ''
@@ -680,7 +681,7 @@
           }
         }
 
-        // 記帳品項管理
+        // 記帳品項管理 (【✨關鍵 Bug 修復點】：payer 確實寫入 expensePayer 選中的代墊人)
         const addExpense = () => {
           if (!expenseDesc.value.trim()) return alert('請填寫消費項目名稱')
           if (!expensePrice.value || expensePrice.value <= 0) return alert('請填寫單價')
@@ -697,7 +698,7 @@
             price: expensePrice.value,
             qty: expenseTotalQty.value,
             claimedQty: totalClaimedQty.value,
-            payer: expensePayer.value,
+            payer: expensePayer.value, // 精準修正：不再抓取錯的物件，確實綁定下拉選單的墊錢人
             total: calculatedTotalAmount.value,
             shares: sharesObj
           })
@@ -705,6 +706,7 @@
           expenseDesc.value = ''
           expensePrice.value = null
           expenseTotalQty.value = null
+          expensePayer.value = ''
           initMemberQuantities()
         }
 
@@ -781,7 +783,9 @@
           currentProject.value.members.forEach(name => { balances[name] = 0 })
 
           currentProject.value.expenses.forEach(exp => {
-            balances[exp.payer] += exp.total
+            if (balances[exp.payer] !== undefined) {
+              balances[exp.payer] += exp.total
+            }
             Object.entries(exp.shares).forEach(([name, qty]) => {
               if (qty > 0 && balances[name] !== undefined) {
                 const itemCost = qty * exp.price
@@ -791,7 +795,9 @@
           })
 
           currentProject.value.extraExpenses.forEach(extra => {
-            balances[extra.payer] += extra.total
+            if (balances[extra.payer] !== undefined) {
+              balances[extra.payer] += extra.total
+            }
             Object.entries(extra.shares).forEach(([name, amt]) => {
               if (amt > 0 && balances[name] !== undefined) {
                 balances[name] -= amt
