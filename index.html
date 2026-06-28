@@ -230,10 +230,10 @@
                     <div class="flex items-center flex-wrap gap-2">
                       <span class="font-bold text-slate-800 text-base">🛍️ {{ exp.desc }}</span>
                       <span v-if="exp.claimedQty !== exp.qty" class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-xs font-semibold">
-                        ⚠️ 帳目未對齊 (還差 {{ exp.qty - exp.claimedQty }} 個)
+                        ⚠️ 數量尚未一致 (還差 {{ exp.qty - exp.claimedQty }} 個)
                       </span>
                       <span v-else class="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-xs">
-                        ✓ 已對齊
+                        ✓數量一致
                       </span>
                     </div>
                     <div class="text-xs text-slate-400 mt-1">
