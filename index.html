@@ -3,13 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🇰🇷團購分帳小工具</title>
-  
-  <!-- 💡 核心修正：強制讓 LINE/通訊軟體的預覽描述變成空白，不要亂抓網頁內文 -->
-  <meta name="description" content=" ">
-  <meta property="og:description" content=" ">
-  <meta property="og:title" content="🇰🇷 團購分帳小工具">
-
+  <title>🇰🇷 韓貨團購精準分帳工具 (整合儲存版)</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -17,10 +11,8 @@
 
   <div id="app" class="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
     
-    <!-- ================= 左側：專案管理 & 專案匯率計算機 ================= -->
     <div class="flex flex-col gap-6">
       
-      <!-- 📂 團購列表區塊 -->
       <div class="bg-white p-5 rounded-2xl shadow-xl border border-slate-200">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800">團購列表</h2>
@@ -30,7 +22,6 @@
           </span>
         </div>
         
-        <!-- 新增專案 -->
         <div class="flex gap-2 mb-4">
           <input 
             v-model="newProjectName" 
@@ -43,7 +34,6 @@
           </button>
         </div>
 
-        <!-- 專案列表 -->
         <div class="flex flex-col gap-2">
           <p v-if="projects.length === 0" class="text-slate-400 text-sm italic text-center py-4">目前沒有專案，請從上方新增</p>
           
@@ -76,14 +66,13 @@
         </div>
       </div>
 
-      <!-- 🧮 專案匯率計算機 -->
       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden transition-all">
         <div 
           @click="isRateWidgetOpen = !isRateWidgetOpen"
           class="p-5 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition select-none bg-slate-50/50"
         >
           <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            🧮 匯率計算機
+            🧮 專案匯率計算機
           </h2>
           <span class="text-slate-500 font-medium text-xs bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
             {{ isRateWidgetOpen ? '▼ 收起面板' : '▲ 展開面板' }}
@@ -134,7 +123,6 @@
 
     </div>
 
-    <!-- ================= 右側：專案內細節明細 ================= -->
     <div v-if="currentProject" class="md:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col gap-6">
       
       <div class="border-b border-slate-100 pb-4 flex justify-between items-center">
@@ -142,7 +130,6 @@
         <span v-if="currentProject.isSettled" class="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full text-xs">🔒 此活動已結清</span>
       </div>
 
-      <!-- 團員管理 -->
       <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">團員</h3>
         <div v-if="!currentProject.isSettled" class="flex gap-2 mb-3">
@@ -165,7 +152,6 @@
         </div>
       </div>
 
-      <!-- 新增商品 -->
       <div v-if="!currentProject.isSettled && currentProject.members.length >= 2" class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">新增商品</h3>
         
@@ -198,7 +184,6 @@
           </div>
         </div>
 
-        <!-- 分配購買數量 -->
         <div class="bg-white p-3 rounded-xl border border-slate-200 mb-3">
           <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-1.5">
             <h4 class="text-xs font-bold text-slate-500">分配購買數量</h4>
@@ -232,7 +217,6 @@
         </button>
       </div>
 
-      <!-- 商品明細列表 -->
       <div>
         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">商品明細</h3>
         <div class="border border-slate-100 rounded-xl overflow-hidden shadow-inner bg-slate-50">
@@ -246,10 +230,10 @@
                     <div class="flex items-center flex-wrap gap-2">
                       <span class="font-bold text-slate-800 text-base">🛍️ {{ exp.desc }}</span>
                       <span v-if="exp.claimedQty !== exp.qty" class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-xs font-semibold">
-                        ⚠️ 數量不一致 (還差 {{ exp.qty - exp.claimedQty }} 個)
+                        ⚠️ 帳目未對齊 (還差 {{ exp.qty - exp.claimedQty }} 個)
                       </span>
                       <span v-else class="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-xs">
-                        ✓ 數量正確
+                        ✓ 已對齊
                       </span>
                     </div>
                     <div class="text-xs text-slate-400 mt-1">
@@ -272,7 +256,6 @@
                 </div>
               </div>
 
-              <!-- 原地編輯模式 -->
               <div v-else class="bg-amber-50/50 p-3 rounded-xl border border-amber-200 flex flex-col gap-3">
                 <div class="text-xs font-bold text-amber-800 flex justify-between items-center border-b border-amber-200 pb-1">
                   <span>🛠️ 正在修改品項：{{ exp.desc }}</span>
@@ -328,7 +311,6 @@
         </div>
       </div>
 
-      <!-- 開始結算按鈕 -->
       <div v-if="currentProject.expenses.length > 0 || (currentProject.extraExpenses && currentProject.extraExpenses.length > 0)">
         <button 
           @click="showSettlement = true" 
@@ -338,10 +320,8 @@
         </button>
       </div>
 
-      <!-- 結算後顯示面板 -->
       <div v-if="showSettlement && currentProject.members.length >= 2 && (currentProject.expenses.length > 0 || currentProject.extraExpenses.length > 0)" class="flex flex-col gap-4">
         
-        <!-- 新增其他費用 -->
         <div v-if="!currentProject.isSettled" class="bg-amber-50/70 p-5 rounded-xl border border-amber-300 shadow-sm flex flex-col gap-4">
           <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider border-b border-amber-200 pb-2 flex items-center gap-1.5">
             🚚 新增其他費用
@@ -419,7 +399,6 @@
           </button>
         </div>
 
-        <!-- 最終轉帳結果 -->
         <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 shadow-md transition-all duration-300">
           <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-indigo-100 pb-3 mb-3">
             <h3 class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -436,7 +415,7 @@
             ✓ 已全部結清
           </div>
           <ul v-else class="space-y-2">
-            <li v-for="(settle, index) in settle() => {}" :key="index" class="bg-white px-4 py-3 rounded-lg border border-slate-100 flex items-center justify-between text-sm shadow-sm">
+            <li v-for="(settle, index) in settlementResults" :key="index" class="bg-white px-4 py-3 rounded-lg border border-slate-100 flex items-center justify-between text-sm shadow-sm">
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded">{{ settle.from }}</span>
                 <span class="text-slate-400">➡️ 應該給 ➡️</span>
@@ -453,7 +432,6 @@
 
     </div>
 
-    <!-- 沒選擇專案時的提示畫面 -->
     <div v-else class="md:col-span-2 bg-white p-12 rounded-2xl shadow-xl border border-slate-200 text-center text-slate-400 italic">
       請先在左側新增或選擇一個活動專案開始記帳吧！
     </div>
@@ -469,6 +447,7 @@
         const currentProjectId = ref(null) 
         const newProjectName = ref('')
 
+        // 商品品項狀態
         const expenseDesc = ref('')
         const expensePrice = ref(null)
         const expenseTotalQty = ref(null) 
@@ -476,20 +455,28 @@
         const newMemberName = ref('')
         const memberQuantities = ref({})
 
+        // 額外費用狀態
         const extraType = ref('shipping') 
         const extraCustomDesc = ref('')
         const extraPayer = ref('')
         const extraSelectedMembers = ref([]) 
         const extraMemberAmounts = ref({}) 
 
+        // 全域匯率計算機獨立變數（與專案解耦，確保左側永遠看得到）
         const globalCalcWon = ref(null)
         const globalCalcTwd = ref(null)
+
+        // 小工具開關狀態（預設展開顯示）
         const isRateWidgetOpen = ref(true)
+
+        // 切換屬性：預設 false
         const useSimplifiedPath = ref(false)
+
         const showSettlement = ref(false)
         const editingIndex = ref(null) 
         const editForm = ref({ price: 0, qty: 0, shares: {} })
 
+        // ─── 💾 讀取本機存檔 ───
         onMounted(() => {
           const savedProjects = localStorage.getItem('group_buy_projects')
           const savedCurrentId = localStorage.getItem('group_buy_current_id')
@@ -522,6 +509,7 @@
           if (savedGlobalTwd) globalCalcTwd.value = Number(savedGlobalTwd)
         })
 
+        // 自動存檔監聽
         watch(projects, (newVal) => {
           localStorage.setItem('group_buy_projects', JSON.stringify(newVal))
         }, { deep: true })
@@ -543,6 +531,7 @@
           return projects.value.find(p => p.id === currentProjectId.value)
         })
 
+        // ─── 核心匯率換算邏輯 ───
         const calculatedLiveRate = computed(() => {
           if (globalCalcWon.value > 0 && globalCalcTwd.value > 0) {
             return (globalCalcWon.value / globalCalcTwd.value).toFixed(2)
@@ -550,6 +539,7 @@
           return '0.00'
         })
 
+        // 維持原汁原味的台幣直覺總金額計算（單價 * 數量）
         const calculatedTotalAmount = computed(() => {
           return (expensePrice.value || 0) * (expenseTotalQty.value || 0)
         })
@@ -630,6 +620,7 @@
           return 'bg-amber-100 text-amber-800'
         })
 
+        // 專案管理
         const addProject = () => {
           const name = newProjectName.value.trim()
           if (name) {
@@ -661,6 +652,7 @@
           }
         }
 
+        // 成員管理
         const addMember = () => {
           const name = newMemberName.value.trim()
           if (name && currentProject.value) {
@@ -681,6 +673,7 @@
           }
         }
 
+        // 商品記帳管理
         const addExpense = () => {
           if (
             currentProject.value && 
@@ -718,6 +711,7 @@
           }
         }
 
+        // 額外費用管理
         const addExtraExpense = () => {
           if (!currentProject.value || !extraPayer.value || calculatedExtraTotal.value <= 0) {
             alert('請填寫正確的分攤金額與付款人！')
@@ -756,6 +750,7 @@
           }
         }
 
+        // 編輯模式
         const startEdit = (index) => {
           editingIndex.value = index
           const targetExp = currentProject.value.expenses[index]
@@ -781,6 +776,7 @@
           editingIndex.value = null
         }
 
+        // 核心分帳路徑邏輯
         const settlementResults = computed(() => {
           if (!currentProject.value) return []
           const members = currentProject.value.members
@@ -789,6 +785,7 @@
 
           if (expenses.length === 0 && extraExpenses.length === 0) return []
 
+          // 模式 A: 預設模式（不打勾）：債務直連對齊
           if (!useSimplifiedPath.value) {
             const directDebts = {}
             members.forEach(m1 => {
@@ -835,6 +832,7 @@
             return finalPaths.filter(p => p.amount > 0)
           }
 
+          // 模式 B: 最少轉帳模式（大沖銷大洗牌）
           const totalPaid = {}
           const totalCost = {}
           members.forEach(name => {
