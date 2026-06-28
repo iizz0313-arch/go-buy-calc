@@ -3,210 +3,909 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🇰🇷團購分帳小工具 </title>
+  <title>🇰🇷 韓貨團購精準分帳工具 (整合儲存版)</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 flex justify-center items-start">
 
-<div id="app" class="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div id="app" class="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <div class="flex flex-col gap-6">
+      
+      <div class="bg-white p-5 rounded-2xl shadow-xl border border-slate-200">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800">團購列表</h2>
+          <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+            自動存檔中
+          </span>
+        </div>
+        
+        <div class="flex gap-2 mb-4">
+          <input 
+            v-model="newProjectName" 
+            @keyup.enter="addProject"
+            placeholder="例如：隨機小卡、周邊團..." 
+            class="flex-1 border border-slate-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+          <button @click="addProject" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-1.5 rounded-xl text-sm transition">
+            新增
+          </button>
+        </div>
 
-<!-- ================= 左側略（你原本的不用動） ================= -->
+        <div class="flex flex-col gap-2">
+          <p v-if="projects.length === 0" class="text-slate-400 text-sm italic text-center py-4">目前沒有專案，請從上方新增</p>
+          
+          <div 
+            v-for="project in projects" 
+            :key="project.id"
+            @click="selectProject(project.id)"
+            :class="[
+              currentProjectId === project.id ? 'bg-blue-50 text-blue-700 border-blue-300 font-semibold' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+              project.isSettled ? 'opacity-70 bg-gray-100 text-gray-500' : ''
+            ]"
+            class="w-full text-left p-3 rounded-xl border text-sm transition flex justify-between items-center cursor-pointer"
+          >
+            <div class="flex items-center gap-2">
+              <input 
+                type="checkbox" 
+                v-model="project.isSettled" 
+                @click.stop
+                class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+              >
+              <span :class="project.isSettled ? 'line-through text-slate-400' : ''">📦 {{ project.name }}</span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span v-if="project.isSettled" class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-normal">已結清</span>
+              <span v-else class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-normal">{{ project.expenses.length + (project.extraExpenses ? project.extraExpenses.length : 0) }} 筆</span>
+              <button @click.stop="deleteProject(project.id)" class="text-slate-400 hover:text-rose-500 font-bold px-1">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<!-- ================= 右側結算區（只標重點有改） ================= -->
+      <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden transition-all">
+        <div 
+          @click="isRateWidgetOpen = !isRateWidgetOpen"
+          class="p-5 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition select-none bg-slate-50/50"
+        >
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            🧮 專案匯率計算機
+          </h2>
+          <span class="text-slate-500 font-medium text-xs bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+            {{ isRateWidgetOpen ? '▼ 收起面板' : '▲ 展開面板' }}
+          </span>
+        </div>
+        
+        <div v-show="isRateWidgetOpen" class="p-5 border-t border-slate-100 bg-white">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">1. 刷卡/收據 韓元總額 (₩)</label>
+              <div class="flex items-center border border-slate-300 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 bg-white">
+                <span class="text-slate-400 text-sm mr-1">₩</span>
+                <input 
+                  type="number" 
+                  v-model.number="globalCalcWon"
+                  placeholder="例如: 150000" 
+                  class="w-full text-sm font-mono focus:outline-none"
+                >
+              </div>
+            </div>
 
-<div v-if="currentProject" class="md:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col gap-6">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">2. 帳單實際扣款 台幣總額 (NT$)</label>
+              <div class="flex items-center border border-slate-300 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 bg-white">
+                <span class="text-slate-400 text-sm mr-1">$</span>
+                <input 
+                  type="number" 
+                  v-model.number="globalCalcTwd"
+                  placeholder="例如: 3675" 
+                  class="w-full text-sm font-mono focus:outline-none"
+                >
+              </div>
+            </div>
 
-  <!-- 原本內容完全保留 -->
-
-  <!-- ===== 結算區 ===== -->
-  <div v-if="currentProject.expenses.length > 0 || (currentProject.extraExpenses && currentProject.extraExpenses.length > 0)">
-
-    <button 
-      @click="showSettlement = true" 
-      class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-md"
-    >
-      🚀 開始結算
-    </button>
-
-  </div>
-
-  <!-- ===== 結算結果 ===== -->
-  <div v-if="showSettlement">
-
-    <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 shadow-md">
-
-      <h3 class="text-xs font-bold text-indigo-800 mb-3">付款方式</h3>
-
-      <label class="inline-flex items-center gap-2 text-xs mb-3">
-        <input type="checkbox" v-model="useSimplifiedPath">
-        最少轉帳模式
-      </label>
-
-      <ul v-if="settlementResults.length">
-        <li v-for="(s,i) in settlementResults" :key="i"
-            class="flex justify-between bg-white p-2 rounded mb-2">
-          <span>{{ s.from }} → {{ s.to }}</span>
-          <span class="font-bold">${{ s.amount }}</span>
-        </li>
-      </ul>
-
-      <div v-else class="text-green-600 text-sm">已結清</div>
-
-      <!-- ⭐ 新增 LINE 複製按鈕 -->
-      <button
-        @click="copyLineText"
-        class="w-full mt-4 bg-black text-white py-2 rounded-xl text-sm font-bold hover:bg-gray-800"
-      >
-        📋 一鍵複製 LINE 結算
-      </button>
+            <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-100 text-sm mt-2">
+              <div class="flex justify-between items-center">
+                <span class="text-indigo-950 font-bold">計算出的匯率：</span>
+                <div class="text-right">
+                  <span class="font-mono font-extrabold text-indigo-700 text-xl">{{ calculatedLiveRate }}</span>
+                  <span class="text-[10px] text-slate-400 block font-bold">韓元 = 1 台幣</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-indigo-500 mt-1.5">※ 提供給您換算參考，右側記帳欄位仍維持直覺的台幣計帳。</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
 
-    <!-- ⭐ LINE 預覽 -->
-    <pre class="mt-3 p-3 bg-slate-900 text-white text-xs rounded-xl whitespace-pre-wrap">
-{{ lineSettlementText }}
-    </pre>
+    <div v-if="currentProject" class="md:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col gap-6">
+      
+      <div class="border-b border-slate-100 pb-4 flex justify-between items-center">
+        <h1 class="text-xl font-extrabold text-slate-800">目前團購：{{ currentProject.name }}</h1>
+        <span v-if="currentProject.isSettled" class="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full text-xs">🔒 此活動已結清</span>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">團員</h3>
+        <div v-if="!currentProject.isSettled" class="flex gap-2 mb-3">
+          <input 
+            v-model="newMemberName" 
+            @keyup.enter="addMember"
+            placeholder="輸入名稱" 
+            class="flex-1 border border-slate-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+          >
+          <button @click="addMember" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-xl text-sm transition">
+            新增
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <p v-if="currentProject.members.length === 0" class="text-slate-400 text-sm italic">目前還沒有成員，請先新增夥伴</p>
+          <span v-for="(name, index) in currentProject.members" :key="index" class="inline-flex items-center bg-blue-50 text-blue-700 rounded-lg px-3 py-1 text-xs font-medium border border-blue-100 shadow-sm">
+            {{ name }}
+            <button v-if="!currentProject.isSettled" @click="removeMember(name, index)" class="ml-2 text-blue-400 hover:text-blue-600 font-bold">×</button>
+          </span>
+        </div>
+      </div>
+
+      <div v-if="!currentProject.isSettled && currentProject.members.length >= 2" class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">新增商品</h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <input v-model="expenseDesc" placeholder="商品名稱" class="border border-slate-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          
+          <div class="flex flex-col bg-white border border-slate-300 rounded-xl px-3 py-1">
+            <span class="text-slate-400 text-[10px] font-bold">單價</span>
+            <div class="flex items-center">
+              <span class="text-slate-500 text-sm mr-1">$</span>
+              <input v-model.number="expensePrice" type="number" min="0" placeholder="0" class="w-full text-sm focus:outline-none font-mono">
+            </div>
+          </div>
+
+          <div class="flex flex-col bg-white border border-slate-300 rounded-xl px-3 py-1">
+            <span class="text-slate-400 text-[10px] font-bold">總數量</span>
+            <input v-model.number="expenseTotalQty" type="number" min="1" placeholder="收據總數" class="w-full text-sm focus:outline-none py-0.5">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <select v-model="expensePayer" class="border border-slate-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="" disabled>付款人</option>
+            <option v-for="name in currentProject.members" :key="name" :value="name">{{ name }}</option>
+          </select>
+
+          <div class="flex items-center bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-700 font-medium justify-between">
+            <span>總金額：</span>
+            <span class="font-extrabold text-base text-slate-800">${{ calculatedTotalAmount }}</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-3 rounded-xl border border-slate-200 mb-3">
+          <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-1.5">
+            <h4 class="text-xs font-bold text-slate-500">分配購買數量</h4>
+            <span :class="statusBadgeClass" class="text-xs font-bold px-2.5 py-0.5 rounded-full transition-all">
+              {{ statusMessage }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div v-for="name in currentProject.members" :key="name" class="flex items-center justify-between border border-slate-100 p-2 rounded-lg bg-slate-50">
+              <span class="text-xs font-medium text-slate-700 truncate mr-1">{{ name }}</span>
+              <div class="flex items-center w-20">
+                <input 
+                  type="number" 
+                  v-model.number="memberQuantities[name]" 
+                  min="0"
+                  placeholder="0"
+                  class="w-full text-center border rounded border-slate-300 text-xs py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                >
+                <span class="text-xs text-slate-400 ml-1">個</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          @click="addExpense" 
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-xl text-sm transition shadow-sm cursor-pointer"
+        >
+          {{ isQuantityMatched ? '新增商品' : '數量尚未一致，仍要新增嗎？' }}
+        </button>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">商品明細</h3>
+        <div class="border border-slate-100 rounded-xl overflow-hidden shadow-inner bg-slate-50">
+          <p v-if="currentProject.expenses.length === 0 && (!currentProject.extraExpenses || currentProject.extraExpenses.length === 0)" class="text-slate-400 text-sm italic p-4 text-center">目前還沒有任何款項紀錄</p>
+          <ul class="divide-y divide-slate-200">
+            
+            <li v-for="(exp, index) in currentProject.expenses" :key="'exp-'+index" class="p-4 flex flex-col gap-3 bg-white transition-all">
+              <div v-if="editingIndex !== index">
+                <div class="flex justify-between items-start text-sm">
+                  <div>
+                    <div class="flex items-center flex-wrap gap-2">
+                      <span class="font-bold text-slate-800 text-base">🛍️ {{ exp.desc }}</span>
+                      <span v-if="exp.claimedQty !== exp.qty" class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-xs font-semibold">
+                        ⚠️ 帳目未對齊 (還差 {{ exp.qty - exp.claimedQty }} 個)
+                      </span>
+                      <span v-else class="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-xs">
+                        ✓ 已對齊
+                      </span>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">
+                      單價 ${{ exp.price }} × 總數 {{ exp.qty }}個 ｜ 由 <span class="font-semibold text-slate-600">{{ exp.payer }}</span> 付款
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center gap-3">
+                    <span class="font-extrabold text-slate-700 text-base mr-2">${{ exp.total }}</span>
+                    <button v-if="!currentProject.isSettled" @click="startEdit(index)" class="text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 px-2 py-1 rounded border border-blue-100">✏️ 編輯</button>
+                    <button v-if="!currentProject.isSettled" @click="removeExpense(index)" class="text-rose-500 hover:text-rose-700 font-medium text-xs bg-rose-50 px-2 py-1 rounded border border-rose-100">刪除</button>
+                  </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-1.5 pt-2 mt-2 border-t border-dashed border-slate-100 text-xs text-slate-500">
+                  <span class="font-medium mr-1">分配結果：</span>
+                  <span v-for="(qty, name) in exp.shares" :key="name" v-show="qty > 0" class="bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                    {{ name }}: {{ qty }}個 (${{ qty * exp.price }})
+                  </span>
+                </div>
+              </div>
+
+              <div v-else class="bg-amber-50/50 p-3 rounded-xl border border-amber-200 flex flex-col gap-3">
+                <div class="text-xs font-bold text-amber-800 flex justify-between items-center border-b border-amber-200 pb-1">
+                  <span>🛠️ 正在修改品項：{{ exp.desc }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="flex items-center bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                    <span class="text-slate-400 mr-1">單價$</span>
+                    <input v-model.number="editForm.price" type="number" class="w-full focus:outline-none font-medium font-mono">
+                  </div>
+                  <div class="flex items-center bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                    <span class="text-slate-400 mr-1">總數量</span>
+                    <input v-model.number="editForm.qty" type="number" class="w-full focus:outline-none font-medium">
+                  </div>
+                </div>
+                <div class="bg-white p-2 rounded-lg border border-slate-200">
+                  <p class="text-[11px] font-bold text-slate-400 mb-1.5">調整每人認領數量：</p>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div v-for="name in currentProject.members" :key="name" class="flex items-center justify-between bg-slate-50 p-1.5 rounded border border-slate-100 text-xs">
+                      <span class="truncate mr-1 max-w-[60px]">{{ name }}</span>
+                      <input type="number" v-model.number="editForm.shares[name]" min="0" class="w-12 text-center border rounded border-slate-300 py-0.5 bg-white">
+                    </div>
+                  </div>
+                </div>
+                <div class="flex justify-end gap-2 text-xs pt-1">
+                  <button @click="cancelEdit" class="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-medium rounded-md">取消</button>
+                  <button @click="saveEdit(index)" class="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md shadow-sm">💾 儲存修改</button>
+                </div>
+              </div>
+            </li>
+
+            <li v-for="(extra, idx) in currentProject.extraExpenses" :key="'extra-'+idx" class="p-4 flex flex-col gap-1 bg-amber-50/20">
+              <div class="flex justify-between items-start text-sm">
+                <div>
+                  <div class="flex items-center flex-wrap gap-1.5">
+                    <span class="font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded text-xs">⚙️ {{ extra.typeLabel }}</span>
+                    <span class="font-bold text-slate-800">{{ extra.desc }}</span>
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1.5">
+                    由 <span class="font-semibold text-slate-600">{{ extra.payer }}</span> 付款 ｜ 明細：
+                    <span v-for="(amt, name) in extra.shares" :key="name" v-show="amt > 0" class="text-slate-700 font-medium mr-2">
+                      {{ name }}(${{ amt }})
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="font-extrabold text-amber-800 text-base mr-2">${{ extra.total }}</span>
+                  <button v-if="!currentProject.isSettled" @click="removeExtraExpense(idx)" class="text-rose-500 hover:text-rose-700 font-medium text-xs bg-rose-50 px-2 py-1 rounded border border-rose-100">刪除</button>
+                </div>
+              </div>
+            </li>
+
+          </ul>
+        </div>
+      </div>
+
+      <div v-if="currentProject.expenses.length > 0 || (currentProject.extraExpenses && currentProject.extraExpenses.length > 0)">
+        <button 
+          @click="showSettlement = true" 
+          class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-md cursor-pointer flex justify-center items-center gap-2"
+        >
+          🚀 {{ showSettlement ? '重新計算' : '開始結算' }}
+        </button>
+      </div>
+
+      <div v-if="showSettlement && currentProject.members.length >= 2 && (currentProject.expenses.length > 0 || currentProject.extraExpenses.length > 0)" class="flex flex-col gap-4">
+        
+        <div v-if="!currentProject.isSettled" class="bg-amber-50/70 p-5 rounded-xl border border-amber-300 shadow-sm flex flex-col gap-4">
+          <h3 class="text-xs font-bold text-amber-900 uppercase tracking-wider border-b border-amber-200 pb-2 flex items-center gap-1.5">
+            🚚 新增其他費用
+          </h3>
+          
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="text-xs font-bold text-slate-500">👥 選擇需要分攤的人：</h4>
+              <button @click="selectAllExtraMembers" class="text-[11px] text-blue-600 hover:underline">全選</button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <label v-for="name in currentProject.members" :key="'extra-mem-'+name" class="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-slate-50 select-none shadow-sm">
+                <input type="checkbox" :value="name" v-model="extraSelectedMembers" class="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded">
+                {{ name }}
+              </label>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-inner" v-if="extraSelectedMembers.length > 0">
+            <h4 class="text-xs font-bold text-amber-800 mb-3">📍 輸入各自分攤金額：</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div v-for="name in extraSelectedMembers" :key="'amt-input-'+name" class="flex items-center justify-between border border-slate-100 p-2 rounded-lg bg-slate-50">
+                <span class="text-xs font-semibold text-slate-700 truncate mr-1">{{ name }}</span>
+                <div class="flex items-center w-24 bg-white border border-slate-300 rounded px-1.5 py-0.5">
+                  <span class="text-[11px] text-slate-400 mr-0.5">$</span>
+                  <input 
+                    type="number" 
+                    v-model.number="extraMemberAmounts[name]" 
+                    min="0"
+                    placeholder="0"
+                    class="w-full text-center text-xs focus:outline-none font-bold"
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="text-right text-xs text-slate-500 font-medium mt-3">
+              💡 當前加總總金額：<span class="text-amber-700 font-bold">${{ calculatedExtraTotal }}</span> 元
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-dashed border-amber-200 pt-3" v-if="extraSelectedMembers.length > 0">
+            <div class="flex items-center gap-4 bg-white border border-slate-300 rounded-xl px-4 py-2 text-sm">
+              <label class="flex items-center gap-1.5 font-medium text-slate-700 cursor-pointer">
+                <input type="radio" v-model="extraType" value="shipping" class="text-blue-600 focus:ring-blue-500"> 運費
+              </label>
+              <label class="flex items-center gap-1.5 font-medium text-slate-700 cursor-pointer">
+                <input type="radio" v-model="extraType" value="other" class="text-blue-600 focus:ring-blue-500"> 其他名目
+              </label>
+            </div>
+
+            <div>
+              <input 
+                v-if="extraType === 'other'" 
+                v-model="extraCustomDesc" 
+                placeholder="例如：國際關稅、精細包材費..." 
+                class="w-full border border-slate-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+              <div v-else class="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-4 py-2 text-sm flex items-center italic">
+                📦 將以「運費」名義記錄
+              </div>
+            </div>
+
+            <select v-model="extraPayer" class="border border-slate-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="" disabled>誰先墊這筆總錢的？</option>
+              <option v-for="name in currentProject.members" :key="name" :value="name">{{ name }}</option>
+            </select>
+          </div>
+
+          <button 
+            v-if="extraSelectedMembers.length > 0"
+            @click="addExtraExpense" 
+            class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-sm transition shadow-sm"
+          >
+            新增費用
+          </button>
+        </div>
+
+        <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 shadow-md transition-all duration-300">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-indigo-100 pb-3 mb-3">
+            <h3 class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+              付款方式
+            </h3>
+            
+            <label class="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-semibold text-indigo-950 cursor-pointer shadow-sm select-none hover:bg-indigo-100 transition">
+              <input type="checkbox" v-model="useSimplifiedPath" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+              最少轉帳模式
+            </label>
+          </div>
+          
+          <div v-if="settlementResults.length === 0" class="text-emerald-600 font-medium text-sm py-2">
+            ✓ 已全部結清
+          </div>
+          <ul v-else class="space-y-2">
+            <li v-for="(settle, index) in settlementResults" :key="index" class="bg-white px-4 py-3 rounded-lg border border-slate-100 flex items-center justify-between text-sm shadow-sm">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded">{{ settle.from }}</span>
+                <span class="text-slate-400">➡️ 應該給 ➡️</span>
+                <span class="font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{{ settle.to }}</span>
+              </div>
+              <div class="font-extrabold text-slate-800 text-base">
+                ${{ settle.amount }} 元
+              </div>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div v-else class="md:col-span-2 bg-white p-12 rounded-2xl shadow-xl border border-slate-200 text-center text-slate-400 italic">
+      請先在左側新增或選擇一個活動專案開始記帳吧！
+    </div>
 
   </div>
 
-</div>
+  <script>
+    const { createApp, ref, computed, watch, onMounted } = Vue
 
-</div>
+    createApp({
+      setup() {
+        const projects = ref([]) 
+        const currentProjectId = ref(null) 
+        const newProjectName = ref('')
 
-<script>
-const { createApp, ref, computed } = Vue
+        // 商品品項狀態
+        const expenseDesc = ref('')
+        const expensePrice = ref(null)
+        const expenseTotalQty = ref(null) 
+        const expensePayer = ref('')
+        const newMemberName = ref('')
+        const memberQuantities = ref({})
 
-createApp({
-  setup() {
+        // 額外費用狀態
+        const extraType = ref('shipping') 
+        const extraCustomDesc = ref('')
+        const extraPayer = ref('')
+        const extraSelectedMembers = ref([]) 
+        const extraMemberAmounts = ref({}) 
 
-    const projects = ref([])
-    const currentProjectId = ref(null)
-    const showSettlement = ref(false)
-    const useSimplifiedPath = ref(false)
+        // 全域匯率計算機獨立變數（與專案解耦，確保左側永遠看得到）
+        const globalCalcWon = ref(null)
+        const globalCalcTwd = ref(null)
 
-    /* ====== 核心資料 ====== */
-    const currentProject = computed(() =>
-      projects.value.find(p => p.id === currentProjectId.value)
-    )
+        // 小工具開關狀態（預設展開顯示）
+        const isRateWidgetOpen = ref(true)
 
-    /* ====== 結算（你原本那段保留） ====== */
-    const settlementResults = computed(() => {
-      if (!currentProject.value) return []
+        // 切換屬性：預設 false
+        const useSimplifiedPath = ref(false)
 
-      const balances = {}
+        const showSettlement = ref(false)
+        const editingIndex = ref(null) 
+        const editForm = ref({ price: 0, qty: 0, shares: {} })
 
-      currentProject.value.members.forEach(m => balances[m] = 0)
+        // ─── 💾 讀取本機存檔 ───
+        onMounted(() => {
+          const savedProjects = localStorage.getItem('group_buy_projects')
+          const savedCurrentId = localStorage.getItem('group_buy_current_id')
+          const savedPathMode = localStorage.getItem('group_buy_path_mode')
+          const savedGlobalWon = localStorage.getItem('group_buy_global_won')
+          const savedGlobalTwd = localStorage.getItem('group_buy_global_twd')
 
-      currentProject.value.expenses.forEach(exp => {
-        balances[exp.payer] += exp.total
-        Object.entries(exp.shares).forEach(([n,q]) => {
-          balances[n] -= q * exp.price
+          if (savedProjects) {
+            try {
+              const parsed = JSON.parse(savedProjects)
+              projects.value = parsed.map(p => ({
+                expenses: [],
+                extraExpenses: [],
+                members: [],
+                ...p
+              }))
+            } catch(e) {
+              projects.value = []
+            }
+          }
+          if (savedCurrentId) {
+            currentProjectId.value = Number(savedCurrentId)
+          } else if (projects.value.length > 0) {
+            currentProjectId.value = projects.value[0].id
+          }
+          if (savedPathMode) {
+            useSimplifiedPath.value = savedPathMode === 'true'
+          }
+          if (savedGlobalWon) globalCalcWon.value = Number(savedGlobalWon)
+          if (savedGlobalTwd) globalCalcTwd.value = Number(savedGlobalTwd)
         })
-      })
 
-      const creditors = []
-      const debtors = []
+        // 自動存檔監聽
+        watch(projects, (newVal) => {
+          localStorage.setItem('group_buy_projects', JSON.stringify(newVal))
+        }, { deep: true })
 
-      Object.entries(balances).forEach(([n,b]) => {
-        if (b > 0) creditors.push({name:n,amount:b})
-        else if (b < 0) debtors.push({name:n,amount:-b})
-      })
-
-      const result = []
-
-      let i=0,j=0
-      while(i<creditors.length && j<debtors.length){
-        const c = creditors[i]
-        const d = debtors[j]
-        const amt = Math.min(c.amount,d.amount)
-
-        result.push({
-          from:d.name,
-          to:c.name,
-          amount:Math.round(amt)
+        watch(currentProjectId, (newVal) => {
+          if (newVal) localStorage.setItem('group_buy_current_id', newVal)
+        })
+        watch(useSimplifiedPath, (newVal) => {
+          localStorage.setItem('group_buy_path_mode', String(newVal))
+        })
+        watch(globalCalcWon, (newVal) => {
+          localStorage.setItem('group_buy_global_won', String(newVal || ''))
+        })
+        watch(globalCalcTwd, (newVal) => {
+          localStorage.setItem('group_buy_global_twd', String(newVal || ''))
         })
 
-        c.amount -= amt
-        d.amount -= amt
+        const currentProject = computed(() => {
+          return projects.value.find(p => p.id === currentProjectId.value)
+        })
 
-        if(c.amount<=0) i++
-        if(d.amount<=0) j++
-      }
+        // ─── 核心匯率換算邏輯 ───
+        const calculatedLiveRate = computed(() => {
+          if (globalCalcWon.value > 0 && globalCalcTwd.value > 0) {
+            return (globalCalcWon.value / globalCalcTwd.value).toFixed(2)
+          }
+          return '0.00'
+        })
 
-      return result
-    })
+        // 維持原汁原味的台幣直覺總金額計算（單價 * 數量）
+        const calculatedTotalAmount = computed(() => {
+          return (expensePrice.value || 0) * (expenseTotalQty.value || 0)
+        })
 
-    /* ====== ⭐ 新增：詳細拆帳 ====== */
-    const detailedSettlement = computed(() => {
-      if (!currentProject.value) return []
+        const calculatedExtraTotal = computed(() => {
+          let sum = 0
+          extraSelectedMembers.value.forEach(name => {
+            const amt = extraMemberAmounts.value[name] || 0
+            if (amt > 0) sum += amt
+          })
+          return sum
+        })
 
-      const out = []
-
-      currentProject.value.expenses.forEach(exp => {
-        Object.entries(exp.shares).forEach(([name, qty]) => {
-          if (qty > 0 && name !== exp.payer) {
-            out.push({
-              from: name,
-              to: exp.payer,
-              amount: qty * exp.price,
-              source: exp.desc
+        const initMemberQuantities = () => {
+          memberQuantities.value = {}
+          if (currentProject.value) {
+            currentProject.value.members.forEach(name => {
+              memberQuantities.value[name] = 0
             })
           }
+        }
+
+        const selectAllExtraMembers = () => {
+          if (currentProject.value) {
+            extraSelectedMembers.value = [...currentProject.value.members]
+          }
+        }
+
+        watch(extraSelectedMembers, (newVal) => {
+          if (currentProject.value) {
+            currentProject.value.members.forEach(name => {
+              if (!newVal.includes(name)) {
+                extraMemberAmounts.value[name] = 0
+              } else if (extraMemberAmounts.value[name] === undefined || extraMemberAmounts.value[name] === 0) {
+                extraMemberAmounts.value[name] = null 
+              }
+            })
+          }
+        }, { deep: true })
+
+        watch(currentProjectId, () => {
+          initMemberQuantities()
+          showSettlement.value = false
+          editingIndex.value = null
+          
+          extraType.value = 'shipping'
+          extraCustomDesc.value = ''
+          extraPayer.value = ''
+          extraSelectedMembers.value = []
+          extraMemberAmounts.value = {}
         })
-      })
 
-      return out
-    })
+        const totalClaimedQty = computed(() => {
+          let total = 0
+          Object.values(memberQuantities.value).forEach(q => { if (q > 0) total += q })
+          return total
+        })
 
-    /* ====== ⭐ LINE 文案 ====== */
-    const lineSettlementText = computed(() => {
-      if (!currentProject.value) return ''
+        const isQuantityMatched = computed(() => {
+          if (!expenseTotalQty.value || expenseTotalQty.value <= 0) return false
+          return expenseTotalQty.value === totalClaimedQty.value
+        })
 
-      let text = `📦 ${currentProject.value.name} 結算\n\n`
+        const statusMessage = computed(() => {
+          const target = expenseTotalQty.value || 0
+          const current = totalClaimedQty.value
+          if (target === 0) return '請填寫上方收據總數量'
+          if (current === target) return '✅ 數量完全吻合！'
+          if (current < target) return `⚠️ 還差 ${target - current} 個未認領`
+          return `⚠️ 超出分配！多了 ${current - target} 個`
+        })
 
-      detailedSettlement.value.forEach(f => {
-        text += `${f.from} → ${f.to}：${f.amount}（${f.source}）\n`
-      })
+        const statusBadgeClass = computed(() => {
+          const target = expenseTotalQty.value || 0
+          const current = totalClaimedQty.value
+          if (target === 0) return 'bg-slate-100 text-slate-500'
+          if (current === target) return 'bg-emerald-100 text-emerald-800'
+          return 'bg-amber-100 text-amber-800'
+        })
 
-      text += `\n📊 總結\n`
+        // 專案管理
+        const addProject = () => {
+          const name = newProjectName.value.trim()
+          if (name) {
+            const newId = Date.now()
+            projects.value.push({
+              id: newId,
+              name: name,
+              members: [],
+              expenses: [],
+              extraExpenses: [],
+              isSettled: false
+            })
+            currentProjectId.value = newId
+            newProjectName.value = ''
+          }
+        }
 
-      const map = {}
+        const selectProject = (id) => { currentProjectId.value = id }
 
-      detailedSettlement.value.forEach(f => {
-        map[f.from] = (map[f.from] || 0) - f.amount
-        map[f.to] = (map[f.to] || 0) + f.amount
-      })
+        const deleteProject = (id) => {
+          if (confirm('確定要刪除這個專案嗎？')) {
+            const index = projects.value.findIndex(p => p.id === id)
+            if (index !== -1) {
+              projects.value.splice(index, 1)
+              if (currentProjectId.value === id) {
+                currentProjectId.value = projects.value.length > 0 ? projects.value[0].id : null
+              }
+            }
+          }
+        }
 
-      Object.entries(map).forEach(([k,v]) => {
-        if (v < 0) text += `${k} 應付 ${Math.abs(v)}\n`
-        else if (v > 0) text += `${k} 應收 ${v}\n`
-      })
+        // 成員管理
+        const addMember = () => {
+          const name = newMemberName.value.trim()
+          if (name && currentProject.value) {
+            if (currentProject.value.members.includes(name)) {
+              alert('名字重複囉！')
+              return
+            }
+            currentProject.value.members.push(name)
+            memberQuantities.value[name] = 0
+            newMemberName.value = ''
+          }
+        }
 
-      return text
-    })
+        const removeMember = (name, index) => {
+          if (currentProject.value) {
+            currentProject.value.members.splice(index, 1)
+            delete memberQuantities.value[name]
+          }
+        }
 
-    /* ====== ⭐ 複製 ====== */
-    const copyLineText = async () => {
-      await navigator.clipboard.writeText(lineSettlementText.value)
-      alert('已複製 LINE 結算 👍')
-    }
+        // 商品記帳管理
+        const addExpense = () => {
+          if (
+            currentProject.value && 
+            expenseDesc.value.trim() && expensePrice.value >= 0 && 
+            (expenseTotalQty.value || 0) > 0 && expensePayer.value
+          ) {
+            const sharesDetail = {}
+            currentProject.value.members.forEach(name => {
+              sharesDetail[name] = memberQuantities.value[name] || 0
+            })
 
-    return {
-      projects,
-      currentProjectId,
-      currentProject,
-      showSettlement,
-      useSimplifiedPath,
+            currentProject.value.expenses.push({
+              desc: expenseDesc.value.trim(),
+              price: expensePrice.value,
+              qty: expenseTotalQty.value,
+              total: calculatedTotalAmount.value,
+              payer: expensePayer.value,
+              shares: sharesDetail,
+              claimedQty: totalClaimedQty.value 
+            })
+            
+            expenseDesc.value = ''
+            expensePrice.value = null
+            expenseTotalQty.value = null
+            expensePayer.value = ''
+            initMemberQuantities()
+          } else {
+            alert('請填寫消費項目、單價、總數量，並選擇付款人！')
+          }
+        }
 
-      settlementResults,
-      detailedSettlement,
-      lineSettlementText,
-      copyLineText
-    }
-  }
-}).mount('#app')
-</script>
+        const removeExpense = (index) => {
+          if (currentProject.value) {
+            currentProject.value.expenses.splice(index, 1)
+          }
+        }
 
+        // 額外費用管理
+        const addExtraExpense = () => {
+          if (!currentProject.value || !extraPayer.value || calculatedExtraTotal.value <= 0) {
+            alert('請填寫正確的分攤金額與付款人！')
+            return
+          }
+
+          let description = '運費'
+          let typeLabel = '運費'
+          if (extraType.value === 'other') {
+            description = extraCustomDesc.value.trim() || '其他雜支'
+            typeLabel = '其他'
+          }
+
+          const finalShares = {}
+          currentProject.value.members.forEach(name => {
+            finalShares[name] = extraMemberAmounts.value[name] || 0
+          })
+
+          currentProject.value.extraExpenses.push({
+            desc: description,
+            typeLabel: typeLabel,
+            total: calculatedExtraTotal.value,
+            payer: extraPayer.value,
+            shares: finalShares 
+          })
+
+          extraCustomDesc.value = ''
+          extraPayer.value = ''
+          extraSelectedMembers.value = []
+          extraMemberAmounts.value = {}
+        }
+
+        const removeExtraExpense = (index) => {
+          if (currentProject.value) {
+            currentProject.value.extraExpenses.splice(index, 1)
+          }
+        }
+
+        // 編輯模式
+        const startEdit = (index) => {
+          editingIndex.value = index
+          const targetExp = currentProject.value.expenses[index]
+          editForm.value = {
+            price: targetExp.price,
+            qty: targetExp.qty,
+            shares: { ...targetExp.shares }
+          }
+        }
+
+        const cancelEdit = () => { editingIndex.value = null }
+
+        const saveEdit = (index) => {
+          const targetExp = currentProject.value.expenses[index]
+          let newClaimedQty = 0
+          Object.values(editForm.value.shares).forEach(q => { if (q > 0) newClaimedQty += q })
+
+          targetExp.price = editForm.value.price
+          targetExp.qty = editForm.value.qty
+          targetExp.total = editForm.value.price * editForm.value.qty
+          targetExp.shares = { ...editForm.value.shares }
+          targetExp.claimedQty = newClaimedQty
+          editingIndex.value = null
+        }
+
+        // 核心分帳路徑邏輯
+        const settlementResults = computed(() => {
+          if (!currentProject.value) return []
+          const members = currentProject.value.members
+          const expenses = currentProject.value.expenses
+          const extraExpenses = currentProject.value.extraExpenses || []
+
+          if (expenses.length === 0 && extraExpenses.length === 0) return []
+
+          // 模式 A: 預設模式（不打勾）：債務直連對齊
+          if (!useSimplifiedPath.value) {
+            const directDebts = {}
+            members.forEach(m1 => {
+              members.forEach(m2 => {
+                if (m1 !== m2) directDebts[`${m1}->${m2}`] = 0
+              })
+            })
+
+            expenses.forEach(exp => {
+              const payer = exp.payer
+              Object.entries(exp.shares).forEach(([buyer, qty]) => {
+                if (buyer !== payer && qty > 0) {
+                  const cost = qty * exp.price
+                  directDebts[`${buyer}->${payer}`] += cost
+                }
+              })
+            })
+
+            extraExpenses.forEach(extra => {
+              const payer = extra.payer
+              Object.entries(extra.shares).forEach(([buyer, amt]) => {
+                if (buyer !== payer && amt > 0) {
+                  directDebts[`${buyer}->${payer}`] += amt
+                }
+              })
+            })
+
+            const finalPaths = []
+            for (let i = 0; i < members.length; i++) {
+              for (let j = i + 1; j < members.length; j++) {
+                const p1 = members[i]
+                const p2 = members[j]
+                
+                const p1_to_p2 = directDebts[`${p1}->${p2}`] || 0
+                const p2_to_p1 = directDebts[`${p2}->${p1}`] || 0
+                
+                if (p1_to_p2 > p2_to_p1) {
+                  finalPaths.push({ from: p1, to: p2, amount: Math.round(p1_to_p2 - p2_to_p1) })
+                } else if (p2_to_p1 > p1_to_p2) {
+                  finalPaths.push({ from: p2, to: p1, amount: Math.round(p2_to_p1 - p1_to_p2) })
+                }
+              }
+            }
+            return finalPaths.filter(p => p.amount > 0)
+          }
+
+          // 模式 B: 最少轉帳模式（大沖銷大洗牌）
+          const totalPaid = {}
+          const totalCost = {}
+          members.forEach(name => {
+            totalPaid[name] = 0
+            totalCost[name] = 0
+          })
+
+          expenses.forEach(exp => {
+            totalPaid[exp.payer] += exp.total
+            Object.entries(exp.shares).forEach(([name, qty]) => {
+              totalCost[name] += (qty * exp.price)
+            })
+          })
+
+          extraExpenses.forEach(extra => {
+            totalPaid[extra.payer] += extra.total
+            Object.entries(extra.shares).forEach(([name, amt]) => {
+              totalCost[name] += amt
+            })
+          })
+
+          const netBalances = []
+          members.forEach(name => {
+            const bal = totalPaid[name] - totalCost[name]
+            netBalances.push({ name, amount: bal })
+          })
+
+          const creditors = netBalances.filter(m => m.amount > 0).sort((a, b) => b.amount - a.amount)
+          const debtors = netBalances.filter(m => m.amount < 0).map(m => ({ name: m.name, amount: -m.amount })).sort((a, b) => b.amount - a.amount)
+
+          const paths = []
+          let cIdx = 0, dIdx = 0
+
+          while (cIdx < creditors.length && dIdx < debtors.length) {
+            const creditor = creditors[cIdx]
+            const debtor = debtors[dIdx]
+            
+            if (creditor.amount <= 1) { cIdx++; continue }
+            if (debtor.amount <= 1) { dIdx++; continue }
+
+            const settleAmt = Math.min(creditor.amount, debtor.amount)
+            if (settleAmt > 1) {
+              paths.push({ from: debtor.name, to: creditor.name, amount: Math.round(settleAmt) })
+              creditor.amount -= settleAmt
+              debtor.amount -= settleAmt
+            }
+            if (creditor.amount <= 1) cIdx++
+            if (debtor.amount <= 1) dIdx++
+          }
+
+          const mergedPaths = {}
+          paths.forEach(p => {
+            const key = `${p.from}->${p.to}`
+            if (mergedPaths[key]) mergedPaths[key].amount += p.amount
+            else mergedPaths[key] = p
+          })
+
+          return Object.values(mergedPaths).filter(p => p.amount > 0)
+        })
+
+        return {
+          projects, currentProjectId, newProjectName, currentProject,
+          expenseDesc, expensePrice, expenseTotalQty, expensePayer, newMemberName, memberQuantities,
+          extraType, extraCustomDesc, extraPayer, extraSelectedMembers, extraMemberAmounts,
+          globalCalcWon, globalCalcTwd, isRateWidgetOpen, useSimplifiedPath, showSettlement, editingIndex, editForm,
+          calculatedLiveRate, calculatedTotalAmount, calculatedExtraTotal, totalClaimedQty,
+          isQuantityMatched, statusMessage, statusBadgeClass,
+          addProject, selectProject, deleteProject, addMember, removeMember,
+          addExpense, removeExpense, startEdit, cancelEdit, saveEdit,
+          addExtraExpense, removeExtraExpense, selectAllExtraMembers, settlementResults
+        }
+      }
+    }).mount('#app')
+  </script>
 </body>
 </html>
